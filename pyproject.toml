@@ -1,0 +1,55 @@
+[project]
+name = "dsh-bing-search"
+version = "0.1.0"
+description = "Bing web search and page retrieval tools for DeepSeek Harness, powered by curl_cffi and MCP."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Biogod2020" },
+]
+keywords = ["deepseek", "dsh", "mcp", "bing", "search", "curl-cffi"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+]
+dependencies = [
+  "curl-cffi>=0.15.0,<0.16",
+  "mcp>=1.28.1,<2",
+  "pydantic>=2.10,<3",
+  "beautifulsoup4>=4.12,<5",
+  "lxml>=5,<7",
+  "trafilatura>=2,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<10",
+  "pytest-asyncio>=0.25,<2",
+]
+
+[project.scripts]
+dsh-bing-search = "dsh_bing_search.server:main"
+
+[project.urls]
+Repository = "https://github.com/Biogod2020/dsh-bing-search"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dsh_bing_search"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+  "live: makes a real request to Bing and is skipped unless RUN_LIVE_BING=1",
+]

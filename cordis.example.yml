@@ -1,0 +1,15 @@
+# Add this entry to the DSH cordis.yml after running `uv sync` in this repository.
+- id: mcp-web
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: web
+    transport: stdio
+    command: /ABS/PATH/dsh-bing-search/.venv/bin/dsh-bing-search
+    args: []
+    toolCallTimeoutMs: 30000
+    failOnStartupError: true
+    reconnect:
+      enabled: true
+      initialDelayMs: 500
+      maxDelayMs: 30000
+      maxAttempts: 10
