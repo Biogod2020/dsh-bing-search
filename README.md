@@ -10,7 +10,7 @@ Web search for **DeepSeek Harness (DSH)**, implemented as a small MCP server and
 
 `search` order:
 
-1. Probe DuckDuckGo HTML (`html.duckduckgo.com`) and cache reachability for about 60 seconds.
+1. Probe DuckDuckGo HTML (`html.duckduckgo.com`) and cache reachability for about 60 seconds. From mainland China this probe often fails unless a proxy is configured.
 2. Use DDG when it is reachable.
 3. Fall back to Bing when DDG is down, rate-limited (HTTP 202 / challenge), or the result set is `quality_label=poor`.
 4. Route Bing by language: Chinese / `zh-*` markets go to `cn.bing.com`, otherwise `www.bing.com`.
@@ -31,6 +31,8 @@ DSH agent
   -> html.duckduckgo.com          (if reachable)
   -> else cn.bing.com / www.bing.com
 ```
+
+**Mainland China:** DuckDuckGo is often unreachable without a proxy or VPN. That is expected. The plugin then uses Bing and sets `warnings` to `duckduckgo_unreachable`. The MCP child does **not** inherit your shell `HTTP_PROXY` / `HTTPS_PROXY` (`trust_env=False`). To force a proxy, set `DSH_WEB_PROXY` on the plugin process (for example `http://127.0.0.1:10808` in the cordis `env:` map). Do not assume DDG will work on a typical mainland home or campus network.
 
 > Community plugin: DeepSeek Harness asks third-party plugins to use the [`dsh-plugin`](https://github.com/topics/dsh-plugin) GitHub topic for discovery.
 
@@ -155,7 +157,9 @@ For people, papers, or illustrated blogs, search the author name or a short prop
 }
 ```
 
-Fetches public HTTP(S) pages with `curl_cffi`, applies DNS/IP checks and safe redirects, limits response size, and extracts readable text without executing JavaScript.
+Fetches public HTTP(S) pages with `curl_cffi`, applies DNS/IP checks and safe redirects, limits response size, and extracts readable text **without executing JavaScript**.
+
+`open` is built for article-like HTML. It is **not** a browser. Live DSH runs showed that weather and other widget-heavy sites (tianqi.com, weather.com.cn, and similar) often yield navigation chrome or near-empty text: Trafilatura finds no main article, then the fallback dumps the whole DOM. `status` can still be `ok`. For those pages, trust the search `snippet`, or `open` a simpler article URL. Do not expect live temperature, maps, or other JS-rendered UI.
 
 ### `find`
 

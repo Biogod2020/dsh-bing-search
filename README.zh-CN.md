@@ -10,7 +10,7 @@
 
 `search` 的顺序：
 
-1. 探测 DuckDuckGo HTML（`html.duckduckgo.com`）是否可及（结果缓存约 60 秒）。
+1. 探测 DuckDuckGo HTML（`html.duckduckgo.com`）是否可及（结果缓存约 60 秒）。中国大陆不翻墙时，这一步经常失败。
 2. 可及则优先走 DDG。
 3. DDG 不可及、被限流（HTTP 202 / challenge）、或结果 `quality_label=poor` 时，回退 Bing。
 4. Bing 按语言分流：中文 / `zh-*` market 走 `cn.bing.com`，否则走 `www.bing.com`。
@@ -32,6 +32,8 @@ DSH agent
   -> html.duckduckgo.com          （可及时）
   -> 否则 cn.bing.com / www.bing.com
 ```
+
+**中国大陆：** 不翻墙、不走代理时，DuckDuckGo 经常连不上，这是正常现象。插件会回退 Bing，并在 `warnings` 里写 `duckduckgo_unreachable`。MCP 子进程**不会**继承你终端里的 `HTTP_PROXY` / `HTTPS_PROXY`（`trust_env=False`）。若要强制走代理，在 cordis 的 `env:` 里给插件设 `DSH_WEB_PROXY`（例如 `http://127.0.0.1:10808`）。不要默认「家里/校园网直连就能用 DDG」。
 
 > DSH 官方目前通过 GitHub [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic 发现社区插件。
 
@@ -156,7 +158,9 @@ DDG 的 `/l/?uddg=` 与 Bing 的 `/ck/a` 跳转会被解开，常见追踪参数
 }
 ```
 
-只允许公开 HTTP(S) 地址；会进行 DNS/IP 检查和安全重定向处理，限制响应体大小，并在不执行 JavaScript 的情况下提取正文。
+只允许公开 HTTP(S) 地址；会进行 DNS/IP 检查和安全重定向处理，限制响应体大小，并在**不执行 JavaScript** 的情况下提取正文。
+
+`open` 适合文章型 HTML，**不是浏览器**。实测里天气站（tianqi.com、weather.com.cn 一类）经常只抽出导航或近乎空白：Trafilatura 找不到正文，退回整页 DOM。这时 `status` 仍可能是 `ok`。这类页面请看搜索结果里的 `snippet`，或换一篇更干净的文章再 `open`。不要指望它给出实时温度、地图或其它靠 JS 渲染的界面。
 
 ### `find`
 
