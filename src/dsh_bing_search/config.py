@@ -47,6 +47,7 @@ class Settings:
     search_cache_ttl_seconds: float
     open_cache_ttl_seconds: float
     bing_images_url: str
+    bing_images_cc: str
     image_good_domains: tuple[str, ...]
     image_bad_domains: tuple[str, ...]
 
@@ -87,6 +88,7 @@ class Settings:
                 "DSH_WEB_CACHE_TTL_SECONDS", 600.0, minimum=0.0, maximum=86400.0
             ),
             bing_images_url=os.getenv("DSH_BING_IMAGES_URL", "https://www.bing.com/images/search"),
+            bing_images_cc=os.getenv("DSH_BING_IMAGES_CC", "").strip(),
             image_good_domains=_env_domains("DSH_IMAGE_GOOD_DOMAINS", ("wenmiyuan.com",)),
             image_bad_domains=_env_domains("DSH_IMAGE_BAD_DOMAINS", ("dashangu.com",)),
         )

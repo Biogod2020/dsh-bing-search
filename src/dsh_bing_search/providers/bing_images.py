@@ -13,6 +13,30 @@ from .bing_parser import detect_bing_block
 _M_BLOB_RE = re.compile(r'\bm="([^"]{40,})"')
 
 
+def build_headers(market: str) -> dict[str, str]:
+    language = market.split("-", 1)[0]
+    return {
+        "Accept-Language": f"{market},{language};q=0.9,en;q=0.7",
+    }
+
+
+def build_params(query: str, *, market: str, cc_override: str) -> dict[str, str | int]:
+    """Bing Images request params; country code comes from the override, else the
+    market region (en-US -> cc=US), and is omitted when the market has no region."""
+    language = market.split("-", 1)[0]
+    params: dict[str, str | int] = {
+        "q": query,
+        "mkt": market,
+        "setlang": language,
+        "form": "HDRSC2",
+    }
+    region = market.split("-", 1)[1] if "-" in market else ""
+    cc = (cc_override or region).strip()
+    if cc:
+        params["cc"] = cc
+    return params
+
+
 class BingImagesProvider:
     """Unofficial Bing Images provider.
 
@@ -32,16 +56,8 @@ class BingImagesProvider:
     async def search(
         self, query: str, *, count: int, market: str
     ) -> list[ImageCandidate]:
-        language = market.split("-", 1)[0]
-        params: dict[str, str | int] = {
-            "q": query,
-            "mkt": market,
-            "setlang": language,
-            "form": "HDRSC2",
-        }
-        headers = {
-            "Accept-Language": f"{market},{language};q=0.9,en;q=0.7",
-        }
+        params = build_params(query, market=market, cc_override=self.config.bing_images_cc)
+        headers = build_headers(market)
         document = await self.client.fetch(
             self.config.bing_images_url,
             params=params,

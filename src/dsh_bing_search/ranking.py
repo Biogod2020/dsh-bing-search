@@ -90,6 +90,8 @@ def rank_candidates(query: str, candidates: list[ImageCandidate]) -> list[ImageR
             score += round(ratio * _SCORE_OVERLAP_MAX)
             if matched:
                 signals.append(f"query_tokens_matched: {','.join(matched[:8])}")
+            else:
+                signals.append("no_query_tokens_matched")
         else:
             signals.append("no_query_tokens")
 

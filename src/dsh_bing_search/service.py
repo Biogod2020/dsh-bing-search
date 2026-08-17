@@ -200,36 +200,39 @@ def _image_cache_key(query: str, count: int, provider: str, market: str) -> str:
     return "\x1f".join((query, str(count), provider, market))
 
 
-async def search_images_web(
+def _pick_auto(
+    bing: ImageSearchResponse,
+    commons: ImageSearchResponse,
+    *,
+    threshold: int,
+) -> ImageSearchResponse:
+    """Choose the better of the two provider responses (pure score comparison)."""
+    bing_top = bing.results[0].score if bing.returned_count else None
+    commons_top = commons.results[0].score if commons.returned_count else None
+    if bing_top is not None and bing_top >= threshold:
+        return bing
+    if commons_top is not None and (bing_top is None or commons_top > bing_top):
+        reason = (
+            f"bing_images top score {bing_top}/100 below {threshold}"
+            if bing_top is not None
+            else "bing_images returned no usable results"
+        )
+        commons.warnings = [
+            f"auto_fallback: {reason}; used commons",
+            *commons.warnings,
+        ]
+        return commons
+    return bing
+
+
+async def _search_images_one(
+    provider: str,
     query: str,
     *,
-    count: int = 10,
-    market: str = "en-US",
-    provider: str = "bing_images",
+    count: int,
+    market: str,
 ) -> ImageSearchResponse:
-    """Search images and rank them with pure text for non-vision models."""
-    query = _collapse_spaces(query)
-    if not query:
-        return ImageSearchResponse(status="error", provider="bing_images", query="", error="empty_query")
-    if len(query) > 512:
-        return ImageSearchResponse(
-            status="error", provider="bing_images", query=query, error="query_too_long"
-        )
-    count = min(max(int(count), 1), 20)
-    if provider not in {"bing_images", "commons"}:
-        return ImageSearchResponse(
-            status="error", provider="bing_images", query=query,
-            requested_count=count, market=market,
-            error="provider must be bing_images or commons",
-        )
-    try:
-        market = normalize_market(market)
-    except ValueError as exc:
-        return ImageSearchResponse(
-            status="error", provider=provider, query=query,
-            requested_count=count, market=market, error=str(exc),
-        )
-
+    """Single-provider image search with its own cache entry."""
     key = _image_cache_key(query, count, provider, market)
     cached = _IMAGE_CACHE.get(key)
     if cached is not None:
@@ -244,21 +247,25 @@ async def search_images_web(
                 candidates = await _COMMONS.search(query, count=count)
     except Exception as exc:
         status = "blocked" if str(exc).startswith("bing_challenge") else "error"
-        return ImageSearchResponse(
+        response = ImageSearchResponse(
             status=status, provider=provider, query=query,
             requested_count=count, market=market,
             error=f"provider_error: {type(exc).__name__}: {exc}",
         )
+        _IMAGE_CACHE.set(key, response.model_copy(deep=True))
+        return response
 
     elapsed_ms = round((time.perf_counter() - started) * 1000)
     results = rank_candidates(query, candidates)
     if not results:
-        return ImageSearchResponse(
+        response = ImageSearchResponse(
             status="ok", provider=provider, query=query,
             requested_count=count, returned_count=0, market=market, results=[],
             warnings=["no_image_results: the provider returned no parseable image entries"],
             elapsed_ms=elapsed_ms,
         )
+        _IMAGE_CACHE.set(key, response.model_copy(deep=True))
+        return response
     warnings: list[str] = []
     if results[0].score < low_score_threshold():
         warnings.append(
@@ -271,6 +278,60 @@ async def search_images_web(
         market=market, results=results, warnings=warnings,
         elapsed_ms=elapsed_ms,
     )
+    _IMAGE_CACHE.set(key, response.model_copy(deep=True))
+    return response
+
+
+async def search_images_web(
+    query: str,
+    *,
+    count: int = 10,
+    market: str = "en-US",
+    provider: str = "auto",
+) -> ImageSearchResponse:
+    """Search images and rank them with pure text for non-vision models.
+
+    provider="auto" tries Bing Images first and transparently falls back to
+    Wikimedia Commons when the top text score is below the threshold, so one
+    call yields a usable, ranked set even when Bing is text-weak.
+    """
+    query = _collapse_spaces(query)
+    if not query:
+        return ImageSearchResponse(status="error", provider="auto", query="", error="empty_query")
+    if len(query) > 512:
+        return ImageSearchResponse(
+            status="error", provider="auto", query=query, error="query_too_long"
+        )
+    count = min(max(int(count), 1), 20)
+    if provider not in {"auto", "bing_images", "commons"}:
+        return ImageSearchResponse(
+            status="error", provider="auto", query=query,
+            requested_count=count, market=market,
+            error="provider must be auto, bing_images, or commons",
+        )
+    try:
+        market = normalize_market(market)
+    except ValueError as exc:
+        return ImageSearchResponse(
+            status="error", provider="auto", query=query,
+            requested_count=count, market=market, error=str(exc),
+        )
+
+    key = _image_cache_key(query, count, provider, market)
+    cached = _IMAGE_CACHE.get(key)
+    if cached is not None:
+        return cached.model_copy(deep=True)
+
+    if provider == "auto":
+        bing = await _search_images_one("bing_images", query, count=count, market=market)
+        if bing.returned_count and bing.results[0].score >= low_score_threshold():
+            response = bing
+        else:
+            commons = await _search_images_one("commons", query, count=count, market=market)
+            response = _pick_auto(bing, commons, threshold=low_score_threshold())
+    else:
+        response = await _search_images_one(provider, query, count=count, market=market)
+
     _IMAGE_CACHE.set(key, response.model_copy(deep=True))
     return response
 

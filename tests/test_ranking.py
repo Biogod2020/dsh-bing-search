@@ -38,10 +38,11 @@ def test_good_domain_beats_bad_domain_for_identical_title() -> None:
 
 def test_unrelated_title_scores_low() -> None:
     unrelated = ImageCandidate(
-        title="广州旅游攻略大全", murl="https://x.com/u.jpg", purl="https://example.com/p"
+        title="Hello world image collection", murl="https://x.com/u.jpg", purl="https://example.com/p"
     )
     results = rank_candidates("广州市第二中学校服", [unrelated])
-    assert results[0].score < 20
+    assert results[0].score == 0
+    assert "no_query_tokens_matched" in results[0].signals
 
 
 def test_missing_title_is_penalised() -> None:
