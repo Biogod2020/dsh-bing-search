@@ -1,0 +1,22 @@
+{
+  "name": "dsh-image-audit",
+  "version": "0.1.0",
+  "description": "Native DSH tool: batch VLM audit of image candidates with pure-text fallback.",
+  "type": "module",
+  "private": true,
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./core": "./src/core.js"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-tools": "*",
+    "@deepseek-ai/dsh-llm": "*",
+    "@deepseek-ai/dsh-attachment": "*",
+    "@deepseek-ai/schemastery": "*"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

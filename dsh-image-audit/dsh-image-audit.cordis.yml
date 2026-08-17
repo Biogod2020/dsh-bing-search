@@ -1,0 +1,15 @@
+# dsh-image-audit × DSH 接入示例(patch 层)
+# 1) cp -R dsh-image-audit ~/.dsh/profiles/node_modules/
+# 2) 把下面条目加入 ~/.dsh/profiles/web/cordis.patch.yml
+# 生效后模型会看到一体化工具 search_and_audit_images(搜索+视觉审核一次完成,
+# 无视觉模型时自动回退纯文字排名)和 audit_images(批量审核自定义候选)。
+- insert:
+    - id: image-audit
+      name: dsh-image-audit
+      config:
+        routes:
+          - provider: local-4002
+            model: mimo-v2.5-free
+        maxImages: 8
+        vetoBelow: 30
+        textWeight: 0.5
