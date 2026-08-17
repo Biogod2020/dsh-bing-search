@@ -8,19 +8,22 @@ The audit runs inside the harness, so it uses DSH's own model routing and
 attachment service — no API keys are managed by the plugin.
 
 **Primary tool: `search_and_audit_images`** — one call does everything: it runs
-the MCP image search internally (`ctx.tools.execute`), detects a vision route,
-audits the top candidates in a single batch request, and returns the final
-ranking merged from text and VLM scores. When no vision model exists the same
-call returns the pure-text ranking (`audit: "text_only"`) — the agent never has
-to chain two tools.
+the MCP image search internally (`ctx.tools.execute`), detects a vision model
+from the DSH configuration itself, audits the top candidates in a single batch
+request, and returns the final ranking merged from text and VLM scores. When no
+vision model exists the same call returns the pure-text ranking
+(`audit: "text_only"`) — the agent never has to chain two tools.
 
 ## How it works
 
-1. **Vision-route detection (native)** — the current session route is tried
-   first, then the configured `routes`; each is validated with
-   `ctx.llm.resolveModelInfo` and must declare `inputModalities` including
-   `image`. No vision route → the tool returns `status: "unavailable"` and the
-   caller falls back to pure-text scores.
+1. **Vision-model detection (native, from DSH's own config)** — the current
+   session route is tried first, then every model DSH itself declares as
+   image-capable (`ctx.llm.listProviders()` → `ctx.llm.listModels(provider)`),
+   each validated with `ctx.llm.resolveModelInfo` and requiring
+   `inputModalities` to include `image`. Nothing probes ports, endpoints, or
+   other machine-specific settings: a vision model is "known" exactly when the
+   harness's own model catalog says so. No vision model → the tool returns
+   `status: "unavailable"` and the caller falls back to pure-text scores.
 2. **One batch call** — all candidates (default up to 16, recommend 8) are
    downloaded, persisted through the attachment service, and sent as
    ImageBlocks in a **single** `ctx.llm.stream` request.
@@ -46,23 +49,22 @@ cp -R dsh-image-audit ~/.dsh/profiles/node_modules/
 
 | key | default | meaning |
 |---|---|---|
-| `routes` | `[]` | vision route candidates `[{provider, model}]`; the current session route is tried first |
+| `routes` | `[]` | optional explicit vision-route overrides `[{provider, model}]`, tried after the session route and DSH-declared vision models; usually empty — vision models are auto-detected from the DSH model configuration |
 | `maxImages` | `16` | max images per audit call (recommend 8) |
 | `maxOutputTokens` | `2000` | audit answer token cap |
 | `timeoutMs` | `45000` | end-to-end vision-call timeout |
 | `vetoBelow` | `30` | VLM scores below this veto the candidate |
 | `textWeight` | `0.5` | weight of the pure-text score in the final blend |
 
-Example route for a local OpenAI-compatible vision endpoint:
+No `routes` needed: the DSH model catalog decides. Example — the vision model
+is just a model DSH already knows can read images (configured in DSH settings
+with `input: [text, image]`):
 
 ```yaml
 - insert:
     - id: image-audit
       name: dsh-image-audit
       config:
-        routes:
-          - provider: local-4002
-            model: mimo-v2.5-free
         maxImages: 8
 ```
 

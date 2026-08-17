@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   buildAuditPrompt,
   downloadImage,
+  enumerateVisionCandidates,
   mergeScores,
   parseAuditResponse,
   pickVisionRoute,
@@ -18,8 +19,38 @@ test('resolveConfig applies defaults and validates ranges', () => {
   assert.throws(() => resolveConfig({ maxImages: 0 }))
   assert.throws(() => resolveConfig({ maxImages: 21 }))
   assert.throws(() => resolveConfig(null))
-  const cfg2 = resolveConfig({ routes: ['local-4002/mimo-v2.5-free', { provider: 'x', model: 'y' }, 'junk'] })
+  const cfg2 = resolveConfig({ routes: ['my-vision/mimo', { provider: 'x', model: 'y' }, 'junk'] })
   assert.equal(cfg2.routes.length, 2)
+})
+
+test('enumerateVisionCandidates finds only DSH-declared image-capable models', async () => {
+  const listProviders = async () => [
+    { id: 'text-only' },
+    { id: 'vision' },
+    { id: 'broken' },
+    { id: 'empty' },
+    'string-provider',
+  ]
+  const listModels = async provider => {
+    if (provider === 'text-only') return [{ id: 'a', inputModalities: ['text'] }]
+    if (provider === 'vision') {
+      return [
+        { id: 'm1', inputModalities: ['text', 'image'], name: 'Vision One' },
+        { id: 'm2', inputModalities: ['text'] },
+        { id: 'm3' }, // absent modality = unknown, not image
+      ]
+    }
+    if (provider === 'broken') throw new Error('catalog unreachable')
+    if (provider === 'empty') return []
+    return [{ id: 'x', inputModalities: ['text', 'image'] }] // string provider
+  }
+  const found = await enumerateVisionCandidates(listProviders, listModels)
+  assert.deepEqual(found, [
+    { provider: 'vision', model: 'm1', name: 'Vision One' },
+    { provider: 'string-provider', model: 'x' },
+  ])
+  assert.deepEqual(await enumerateVisionCandidates(null, listModels), [])
+  assert.deepEqual(await enumerateVisionCandidates(async () => { throw new Error('boom') }, listModels), [])
 })
 
 test('buildAuditPrompt mentions count, query and JSON contract', () => {

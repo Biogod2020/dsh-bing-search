@@ -5,11 +5,13 @@
  *
  * The integrated tool drives the MCP `mcp__web__search_images` tool through
  * `ctx.tools.execute`, so the pure-text ranking stays in dsh-bing-search while
- * the vision audit runs natively in the harness. Vision routes are detected
- * with `ctx.llm.resolveModelInfo` (`inputModalities` includes `image`): the
- * current session route first, then the configured `routes`. When no vision
- * route exists the search still returns, audited with pure-text scores only —
- * the caller never has to chain two tools.
+ * the vision audit runs natively in the harness. Vision routes come from the
+ * harness's own model configuration (`ctx.llm.listProviders`/`listModels`,
+ * validated with `resolveModelInfo` so `inputModalities` includes `image`) —
+ * no ports, endpoints, or machine-specific settings are probed. The current
+ * session route is tried first. When no vision model exists the search still
+ * returns, audited with pure-text scores only — the caller never has to chain
+ * two tools.
  * @module dsh-image-audit
  */
 
@@ -21,6 +23,7 @@ import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'
 import {
   buildAuditPrompt,
   downloadImage,
+  enumerateVisionCandidates,
   mergeScores,
   parseAuditResponse,
   pickVisionRoute,
@@ -35,7 +38,10 @@ export const inject = ['tools']
 
 /** Plugin configuration with defaults. */
 export const Config = z.object({
-  routes: z.array(z.object({ provider: z.string(), model: z.string() })).default([]),
+  routes: z
+    .array(z.object({ provider: z.string(), model: z.string() }))
+    .default([])
+    .description('Optional explicit vision-route overrides, tried after the session route and DSH-declared vision models. Usually empty: vision models are auto-detected from the DSH model configuration.'),
   maxImages: z.number().min(1).max(20).default(16),
   maxOutputTokens: z.number().min(64).max(16000).default(2000),
   timeoutMs: z.number().min(1000).max(300000).default(45000),
@@ -140,6 +146,24 @@ async function auditEntries(ctx, entries, { query, criteria, route, resolved, ex
   return { status: 'ok', route: `${route.provider}/${route.model}`, results }
 }
 
+/**
+ * Ordered vision-route candidates: the current session route first, then every
+ * model DSH itself declares as image-capable (enumerated from the harness's own
+ * provider/model catalog — no port probing, nothing machine-specific), then the
+ * optional explicit `routes` overrides last.
+ */
+async function visionCandidates(ctx, exec) {
+  const llm = ctx.get('llm')
+  const header = exec.agent?.session?.requestHeader?.()?.config
+  const sessionRoute =
+    header?.provider && header?.model ? { provider: header.provider, model: header.model } : null
+  const enumerated = await enumerateVisionCandidates(
+    () => llm.listProviders(),
+    provider => llm.listModels(provider),
+  )
+  return [sessionRoute, ...enumerated, ...resolved.routes].filter(Boolean)
+}
+
 /** Internal inner search through the MCP tool. */
 async function innerSearch(ctx, exec, args) {
   const result = await ctx.tools.execute({
@@ -172,10 +196,11 @@ export function apply(ctx, config = {}) {
     name: 'search_and_audit_images',
     description:
       'Search images and audit the results with a vision-capable model in one call. ' +
-      'Internally runs mcp__web__search_images, then (when a vision route exists) audits the top ' +
-      'candidates with the vision model and returns a final ranking merged from the pure-text score ' +
-      'and the VLM verdict. With no vision model the same call returns the pure-text ranking ' +
-      '(audit: "text_only"). All candidates are audited in a single request.',
+      'Internally runs mcp__web__search_images, then (when the DSH configuration declares a ' +
+      'vision-capable model) audits the top candidates with that model and returns a final ranking ' +
+      'merged from the pure-text score and the VLM verdict. With no vision model in the DSH config ' +
+      'the same call returns the pure-text ranking (audit: "text_only"). ' +
+      'All candidates are audited in a single request.',
     parameters: {
       query: { type: 'string', required: true, description: 'What the image should depict.' },
       count: { type: 'integer', min: 1, max: 20, default: 8, description: 'Number of candidates to search and audit (default 8; expands once to up to maxImages when everything is vetoed).' },
@@ -248,10 +273,7 @@ export function apply(ctx, config = {}) {
         }
       }
 
-      const header = exec.agent?.session?.requestHeader?.()?.config
-      const sessionRoute =
-        header?.provider && header?.model ? { provider: header.provider, model: header.model } : null
-      const route = await pickVisionRoute([sessionRoute, ...resolved.routes], (provider, model) =>
+      const route = await pickVisionRoute(await visionCandidates(ctx, exec), (provider, model) =>
         llm.resolveModelInfo(provider, model, exec.signal)
       )
 
@@ -261,7 +283,7 @@ export function apply(ctx, config = {}) {
         return {
           status: 'ok',
           audit: 'text_only',
-          reason: 'no_vision_model_route; pure-text scores only',
+          reason: 'no_vision_model_in_dsh_config; pure-text scores only',
           provider: search.provider,
           warnings: search.warnings,
           results: search.results.map((row, i) => ({ rank: i + 1, ...row, final_score: row.text_score })),
@@ -317,8 +339,9 @@ export function apply(ctx, config = {}) {
     name: 'audit_images',
     description:
       'Audit a batch of image candidates (max ' + resolved.maxImages + ') with a vision-capable model and return ' +
-      'per-image accept/veto/scores. Uses the current session route when it can read images, else the configured ' +
-      'vision routes; returns status "unavailable" when no vision model exists — then fall back to pure-text scores.',
+      'per-image accept/veto/scores. Uses the current session route when it can read images, else any vision model ' +
+      'the DSH configuration declares; returns status "unavailable" when no vision model exists — then fall back to ' +
+      'pure-text scores.',
     parameters: {
       query: { type: 'string', description: 'The search query these images were retrieved for.' },
       criteria: { type: 'string', description: 'Optional extra audit criteria.' },
@@ -395,14 +418,11 @@ export function apply(ctx, config = {}) {
       if (!llm || !attachments) {
         return { status: 'unavailable', reason: 'llm or attachments service not mounted' }
       }
-      const header = exec.agent?.session?.requestHeader?.()?.config
-      const sessionRoute =
-        header?.provider && header?.model ? { provider: header.provider, model: header.model } : null
-      const route = await pickVisionRoute([sessionRoute, ...resolved.routes], (provider, model) =>
+      const route = await pickVisionRoute(await visionCandidates(ctx, exec), (provider, model) =>
         llm.resolveModelInfo(provider, model, exec.signal)
       )
       if (!route) {
-        return { status: 'unavailable', reason: 'no_vision_model_route; fall back to pure-text scores' }
+        return { status: 'unavailable', reason: 'no vision model declared in the DSH config; fall back to pure-text scores' }
       }
       const audited = await auditEntries(ctx, args.images, {
         query: args.query ?? '',

@@ -125,6 +125,47 @@ export function mergeScores({ textScore = null, vlmScore, vetoBelow = DEFAULT_VE
   return { finalScore: Math.round(textWeight * text + (1 - textWeight) * vlm), vetoed }
 }
 
+/**
+ * Enumerate DSH's own configured models that declare image input — the
+ * providers/models the harness already knows about (settings, not ports).
+ * No port probing: a vision model is "known" only when DSH's model catalog
+ * declares `inputModalities` including `image`.
+ * @param {() => Promise<Array<{id: string} | string>>} listProviders - llm.listProviders
+ * @param {(provider: string) => Promise<Array<{id: string, inputModalities?: readonly string[]} | string>>} listModels - llm.listModels
+ * @returns {Promise<Array<{provider: string, model: string, name?: string}>>} deduped candidates
+ */
+export async function enumerateVisionCandidates(listProviders, listModels) {
+  const out = []
+  const seen = new Set()
+  if (typeof listProviders !== 'function' || typeof listModels !== 'function') return out
+  let providers
+  try {
+    providers = await listProviders()
+  } catch {
+    return out
+  }
+  for (const provider of providers ?? []) {
+    const providerId = typeof provider === 'string' ? provider : provider?.id
+    if (!providerId) continue
+    let models
+    try {
+      models = (await listModels(providerId)) ?? []
+    } catch {
+      continue // a provider may be configured without a reachable catalog
+    }
+    for (const model of models) {
+      const id = typeof model === 'string' ? model : model?.id
+      if (!id) continue
+      if (!model?.inputModalities?.includes('image')) continue
+      const key = `${providerId}/${id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push({ provider: providerId, model: id, ...(model?.name ? { name: model.name } : {}) })
+    }
+  }
+  return out
+}
+
 export async function pickVisionRoute(candidates, resolveModelInfo) {
   const seen = new Set()
   for (const candidate of candidates ?? []) {

@@ -3,13 +3,12 @@
 # 2) 把下面条目加入 ~/.dsh/profiles/web/cordis.patch.yml
 # 生效后模型会看到一体化工具 search_and_audit_images(搜索+视觉审核一次完成,
 # 无视觉模型时自动回退纯文字排名)和 audit_images(批量审核自定义候选)。
+# 无需配置 routes:视觉模型直接从 DSH 自身已配置的模型目录里自动发现
+# (当前会话路由优先,其次 DSH 配置中声明了 image 输入能力的模型)。
 - insert:
     - id: image-audit
       name: dsh-image-audit
       config:
-        routes:
-          - provider: local-4002
-            model: mimo-v2.5-free
         maxImages: 8
         vetoBelow: 30
         textWeight: 0.5
