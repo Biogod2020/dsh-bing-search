@@ -44,6 +44,57 @@ class SearchResponse(BaseModel):
     error: str | None = None
 
 
+ImageProvider = Literal["bing_images", "commons"]
+DomainHint = Literal["good", "neutral", "bad"]
+
+
+class ImageCandidate(BaseModel):
+    """Raw image entry as returned by a provider, before pure-text ranking."""
+
+    title: str | None = None
+    murl: str = Field(description="Original image URL.")
+    turl: str | None = None
+    purl: str | None = None
+    md5: str | None = None
+    width: int | None = None
+    height: int | None = None
+
+
+class ImageResult(BaseModel):
+    source_id: str = Field(description="Stable ID derived from the original image URL.")
+    rank: int = Field(ge=1)
+    title: str | None = None
+    murl: str = Field(description="Original image URL.")
+    turl: str | None = Field(default=None, description="Thumbnail URL when the provider offers one.")
+    purl: str | None = Field(default=None, description="Source page the image came from.")
+    md5: str | None = None
+    width: int | None = None
+    height: int | None = None
+    score: int = Field(
+        ge=0,
+        le=100,
+        description="0-100 pure-text relevance: query-overlap plus source-domain reputation. "
+        "Below ~40 treat as unverified.",
+    )
+    domain_hint: DomainHint = "neutral"
+    signals: list[str] = Field(
+        default_factory=list, description="Explainable text evidence behind the score."
+    )
+
+
+class ImageSearchResponse(BaseModel):
+    status: Status
+    provider: ImageProvider = "bing_images"
+    query: str
+    requested_count: int = 0
+    returned_count: int = 0
+    market: str = "en-US"
+    results: list[ImageResult] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    elapsed_ms: int | None = None
+    error: str | None = None
+
+
 class OpenResponse(BaseModel):
     status: Status
     source_id: str | None = None

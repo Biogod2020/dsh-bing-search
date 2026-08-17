@@ -2,16 +2,26 @@ from __future__ import annotations
 
 import asyncio
 import re
+import time
 
 from .cache import TTLCache
 from .config import settings
 from .extract import extract_title, html_to_readable_text
 from .http import http_client
-from .models import FindMatch, FindResponse, OpenResponse, SearchResponse
+from .models import (
+    FindMatch,
+    FindResponse,
+    ImageSearchResponse,
+    OpenResponse,
+    SearchResponse,
+)
 from .providers.base import SearchProvider
 from .providers.bing import BingHtmlProvider
+from .providers.bing_images import BingImagesProvider
+from .providers.commons import CommonsProvider
 from .providers.ddg import DuckDuckGoHtmlProvider
 from .quality import apply_quality
+from .ranking import low_score_threshold, rank_candidates
 from .url_utils import canonicalize_url, normalize_market, source_id_for
 
 _SEARCH_CACHE: TTLCache[SearchResponse] = TTLCache(
@@ -23,6 +33,11 @@ _OPEN_CACHE: TTLCache[OpenResponse] = TTLCache(
 _BING = BingHtmlProvider()
 _DDG = DuckDuckGoHtmlProvider()
 _CONCURRENCY = asyncio.Semaphore(settings.concurrency)
+_BING_IMAGES = BingImagesProvider()
+_COMMONS = CommonsProvider()
+_IMAGE_CACHE: TTLCache[ImageSearchResponse] = TTLCache(
+    maxsize=128, ttl_seconds=settings.open_cache_ttl_seconds
+)
 _DDG_PROBE_TTL = 60.0
 _ddg_probe_ok: bool | None = None
 _ddg_probe_at = 0.0
@@ -179,6 +194,85 @@ async def _search_with_providers(
             return ddg_response
         return bing_response
     return ddg_response
+
+
+def _image_cache_key(query: str, count: int, provider: str, market: str) -> str:
+    return "\x1f".join((query, str(count), provider, market))
+
+
+async def search_images_web(
+    query: str,
+    *,
+    count: int = 10,
+    market: str = "en-US",
+    provider: str = "bing_images",
+) -> ImageSearchResponse:
+    """Search images and rank them with pure text for non-vision models."""
+    query = _collapse_spaces(query)
+    if not query:
+        return ImageSearchResponse(status="error", provider="bing_images", query="", error="empty_query")
+    if len(query) > 512:
+        return ImageSearchResponse(
+            status="error", provider="bing_images", query=query, error="query_too_long"
+        )
+    count = min(max(int(count), 1), 20)
+    if provider not in {"bing_images", "commons"}:
+        return ImageSearchResponse(
+            status="error", provider="bing_images", query=query,
+            requested_count=count, market=market,
+            error="provider must be bing_images or commons",
+        )
+    try:
+        market = normalize_market(market)
+    except ValueError as exc:
+        return ImageSearchResponse(
+            status="error", provider=provider, query=query,
+            requested_count=count, market=market, error=str(exc),
+        )
+
+    key = _image_cache_key(query, count, provider, market)
+    cached = _IMAGE_CACHE.get(key)
+    if cached is not None:
+        return cached.model_copy(deep=True)
+
+    started = time.perf_counter()
+    try:
+        async with _CONCURRENCY:
+            if provider == "bing_images":
+                candidates = await _BING_IMAGES.search(query, count=count, market=market)
+            else:
+                candidates = await _COMMONS.search(query, count=count)
+    except Exception as exc:
+        status = "blocked" if str(exc).startswith("bing_challenge") else "error"
+        return ImageSearchResponse(
+            status=status, provider=provider, query=query,
+            requested_count=count, market=market,
+            error=f"provider_error: {type(exc).__name__}: {exc}",
+        )
+
+    elapsed_ms = round((time.perf_counter() - started) * 1000)
+    results = rank_candidates(query, candidates)
+    if not results:
+        return ImageSearchResponse(
+            status="ok", provider=provider, query=query,
+            requested_count=count, returned_count=0, market=market, results=[],
+            warnings=["no_image_results: the provider returned no parseable image entries"],
+            elapsed_ms=elapsed_ms,
+        )
+    warnings: list[str] = []
+    if results[0].score < low_score_threshold():
+        warnings.append(
+            f"top_score_low ({results[0].score}/100): the best match is text-weak; "
+            "refine the query, switch provider, or verify the image before use"
+        )
+    response = ImageSearchResponse(
+        status="ok", provider=provider, query=query,
+        requested_count=count, returned_count=len(results),
+        market=market, results=results, warnings=warnings,
+        elapsed_ms=elapsed_ms,
+    )
+    _IMAGE_CACHE.set(key, response.model_copy(deep=True))
+    return response
 
 
 async def open_web(url: str, *, max_chars: int = 24000) -> OpenResponse:

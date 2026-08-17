@@ -16,15 +16,17 @@ warnings.filterwarnings(
 
 from mcp.server.fastmcp import FastMCP
 
-from .models import FindResponse, OpenResponse, SearchResponse
-from .service import find_in_webpage, open_web, search_web
+from .models import FindResponse, ImageSearchResponse, OpenResponse, SearchResponse
+from .service import find_in_webpage, open_web, search_images_web, search_web
 
 mcp = FastMCP(
     name="dsh-bing-search",
     instructions=(
         "Use search to discover sources, open to read a selected source, and find to locate a literal phrase "
         "inside a long source. Prefer multiple independent sources for factual claims. "
-        "If quality_label is poor, do not cite the titles; refine the query or use a specialized corpus."
+        "If quality_label is poor, do not cite the titles; refine the query or use a specialized corpus. "
+        "search_images returns image URLs ranked 0-100 by pure text (query overlap + source-domain reputation) "
+        "with explainable signals; prefer the highest score and treat anything below ~40 as unverified."
     ),
     json_response=True,
 )
@@ -56,6 +58,36 @@ async def search_tool(
         offset=offset,
         market=market,
         safe_search=safe_search,
+    )
+
+
+@mcp.tool(name="search_images", title="Search Images", structured_output=True)
+async def search_images_tool(
+    query: str,
+    count: int = 10,
+    market: str = "en-US",
+    provider: Literal["bing_images", "commons"] = "bing_images",
+) -> ImageSearchResponse:
+    """Search image indexes and rank results with pure text so vision is not required.
+
+    bing_images (default) parses Bing Images metadata (original URL / thumbnail /
+    source page / title). commons queries Wikimedia Commons, a curated and
+    licence-clear platform. Every result carries a 0-100 text score, a domain
+    hint and explainable signals; pick the highest score, treat scores below
+    ~40 as unverified, and optionally verify with `find`/`open` on the source
+    page before downloading.
+
+    Args:
+        query: What the image should depict. Keep it specific.
+        count: Number of ranked image results to return, from 1 to 20.
+        market: Locale such as en-US or zh-CN (Bing Images; Commons is language-neutral).
+        provider: bing_images (default) or commons.
+    """
+    return await search_images_web(
+        query,
+        count=count,
+        market=market,
+        provider=provider,
     )
 
 

@@ -15,6 +15,13 @@ def _env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
     return min(max(value, minimum), maximum)
 
 
+def _env_domains(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    return tuple(d.strip().lower() for d in raw.split(",") if d.strip())
+
+
 def _env_float(name: str, default: float, *, minimum: float, maximum: float) -> float:
     raw = os.getenv(name)
     if raw is None:
@@ -39,6 +46,9 @@ class Settings:
     concurrency: int
     search_cache_ttl_seconds: float
     open_cache_ttl_seconds: float
+    bing_images_url: str
+    image_good_domains: tuple[str, ...]
+    image_bad_domains: tuple[str, ...]
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -76,6 +86,9 @@ class Settings:
             open_cache_ttl_seconds=_env_float(
                 "DSH_WEB_CACHE_TTL_SECONDS", 600.0, minimum=0.0, maximum=86400.0
             ),
+            bing_images_url=os.getenv("DSH_BING_IMAGES_URL", "https://www.bing.com/images/search"),
+            image_good_domains=_env_domains("DSH_IMAGE_GOOD_DOMAINS", ("wenmiyuan.com",)),
+            image_bad_domains=_env_domains("DSH_IMAGE_BAD_DOMAINS", ("dashangu.com",)),
         )
 
 
