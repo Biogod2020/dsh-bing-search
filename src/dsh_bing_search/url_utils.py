@@ -70,6 +70,27 @@ def unwrap_bing_url(href: str) -> str:
     return href
 
 
+def unwrap_ddg_url(href: str) -> str:
+    """Decode DuckDuckGo /l/?uddg= redirect links."""
+    value = href.strip()
+    if value.startswith("//"):
+        value = "https:" + value
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return href
+    host = (parts.hostname or "").lower().rstrip(".")
+    if host not in {"duckduckgo.com", "www.duckduckgo.com", "html.duckduckgo.com"}:
+        return value
+    if parts.path.rstrip("/") != "/l":
+        return value
+    target = parse_qs(parts.query).get("uddg", [None])[0]
+    if not target:
+        return value
+    decoded = unquote(target)
+    return decoded if decoded.startswith(("http://", "https://")) else value
+
+
 def canonicalize_url(url: str) -> str:
     """Normalize an HTTP URL for deduplication without changing path semantics."""
     value = url.strip()

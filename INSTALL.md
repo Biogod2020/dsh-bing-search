@@ -6,7 +6,7 @@ Repository: `https://github.com/Biogod2020/dsh-bing-search`
 
 ## Goal
 
-Install the `dsh-bing-search` executable, register it through DSH's official `@deepseek-ai/dsh-mcp-client`, preserve all unrelated user configuration, and verify a real Bing search.
+Install the `dsh-bing-search` executable, register it through DSH's official `@deepseek-ai/dsh-mcp-client`, preserve all unrelated user configuration, and verify a real web search (`mcp__web__search` may use DuckDuckGo or Bing).
 
 ## Required behavior
 
@@ -71,5 +71,5 @@ Then point DSH at the absolute path of `.venv/bin/dsh-bing-search` (or the corre
 - Do not replace the entire patch file to add this plugin.
 - Do not disable TLS verification.
 - Do not add CAPTCHA-bypass logic.
-- Do not silently switch away from `curl_cffi` to another HTTP client for Bing retrieval.
+- Do not silently switch away from `curl_cffi` to another HTTP client for retrieval.
 - Do not claim success until an actual tool call has been verified.

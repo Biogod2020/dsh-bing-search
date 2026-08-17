@@ -3,6 +3,7 @@ from __future__ import annotations
 from ..config import Settings, settings
 from ..http import CurlHttpClient, http_client
 from ..models import SearchResponse
+from .bing_locale import bing_search_url, bing_setlang
 from .bing_parser import detect_bing_block, detect_no_results, parse_bing_results
 
 
@@ -27,13 +28,13 @@ class BingHtmlProvider:
         safe_search: str = "Moderate",
     ) -> SearchResponse:
         language = market.split("-", 1)[0]
+        setlang = bing_setlang(market)
+        search_url = bing_search_url(market, query, self.config.bing_search_url)
         params: dict[str, str | int] = {
             "q": query,
-            "count": count,
             "first": offset + 1,
             "mkt": market,
-            "setlang": language,
-            "adlt": safe_search.lower(),
+            "setlang": setlang,
         }
         headers = {
             "Accept-Language": f"{market},{language};q=0.9,en;q=0.7",
@@ -42,15 +43,16 @@ class BingHtmlProvider:
             "Sec-Fetch-Site": "none",
             "Upgrade-Insecure-Requests": "1",
         }
+        referer = "https://cn.bing.com/" if "cn.bing.com" in search_url else "https://www.bing.com/"
 
         try:
             document = await self.client.fetch(
-                self.config.bing_search_url,
+                search_url,
                 params=params,
                 headers=headers,
                 max_bytes=self.config.max_search_bytes,
                 validate_url=False,
-                referer="https://www.bing.com/",
+                referer=referer,
             )
         except Exception as exc:
             return SearchResponse(

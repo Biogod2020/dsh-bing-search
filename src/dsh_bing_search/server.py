@@ -23,13 +23,14 @@ mcp = FastMCP(
     name="dsh-bing-search",
     instructions=(
         "Use search to discover sources, open to read a selected source, and find to locate a literal phrase "
-        "inside a long source. Prefer multiple independent sources for factual claims."
+        "inside a long source. Prefer multiple independent sources for factual claims. "
+        "If quality_label is poor, do not cite the titles; refine the query or use a specialized corpus."
     ),
     json_response=True,
 )
 
 
-@mcp.tool(name="search", title="Search Bing", structured_output=True)
+@mcp.tool(name="search", title="Search the Web", structured_output=True)
 async def search_tool(
     query: str,
     count: int = 8,
@@ -37,14 +38,17 @@ async def search_tool(
     market: str = "en-US",
     safe_search: Literal["Strict", "Moderate", "Off"] = "Moderate",
 ) -> SearchResponse:
-    """Search Bing's HTML results with curl_cffi and return normalized organic sources.
+    """Search the public web. DuckDuckGo is tried first when reachable; Bing is the fallback.
+
+    Chinese queries / zh-* markets use cn.bing.com. Read quality_label: poor means the
+    titles are unrelated or first-token junk — do not treat them as answers.
 
     Args:
-        query: Search query. Refine it and call again when the first result set is insufficient.
+        query: Search query. Keep it short. For a person plus a paper, search the author name first.
         count: Number of organic results to return, from 1 to 20.
         offset: Result offset for pagination, from 0 to 100.
-        market: Bing market such as en-US or zh-CN.
-        safe_search: Bing SafeSearch level.
+        market: Locale such as en-US or zh-CN. Chinese text should use zh-CN.
+        safe_search: SafeSearch level (used when Bing is the engine).
     """
     return await search_web(
         query,

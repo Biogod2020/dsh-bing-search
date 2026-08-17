@@ -8,7 +8,10 @@ from .config import settings
 from .extract import extract_title, html_to_readable_text
 from .http import http_client
 from .models import FindMatch, FindResponse, OpenResponse, SearchResponse
+from .providers.base import SearchProvider
 from .providers.bing import BingHtmlProvider
+from .providers.ddg import DuckDuckGoHtmlProvider
+from .quality import apply_quality
 from .url_utils import canonicalize_url, normalize_market, source_id_for
 
 _SEARCH_CACHE: TTLCache[SearchResponse] = TTLCache(
@@ -17,8 +20,41 @@ _SEARCH_CACHE: TTLCache[SearchResponse] = TTLCache(
 _OPEN_CACHE: TTLCache[OpenResponse] = TTLCache(
     maxsize=128, ttl_seconds=settings.open_cache_ttl_seconds
 )
-_PROVIDER = BingHtmlProvider()
+_BING = BingHtmlProvider()
+_DDG = DuckDuckGoHtmlProvider()
 _CONCURRENCY = asyncio.Semaphore(settings.concurrency)
+_DDG_PROBE_TTL = 60.0
+_ddg_probe_ok: bool | None = None
+_ddg_probe_at = 0.0
+
+
+async def probe_duckduckgo(*, force: bool = False) -> bool:
+    """Cache a cheap DDG HTML ping so we do not probe on every search."""
+    global _ddg_probe_ok, _ddg_probe_at
+    now = asyncio.get_running_loop().time()
+    if not force and _ddg_probe_ok is not None and (now - _ddg_probe_at) < _DDG_PROBE_TTL:
+        return _ddg_probe_ok
+    ok = await _DDG.probe()
+    _ddg_probe_ok = ok
+    _ddg_probe_at = now
+    return ok
+
+
+def _annotate(response: SearchResponse) -> SearchResponse:
+    score, label, extra = apply_quality(response.query, response.results)
+    response.quality_score = score
+    response.quality_label = label
+    if extra:
+        response.warnings = list(response.warnings) + extra
+    return response
+
+
+def _usable(response: SearchResponse) -> bool:
+    return (
+        response.status == "ok"
+        and bool(response.results)
+        and response.quality_label != "poor"
+    )
 
 
 def _collapse_spaces(value: str) -> str:
@@ -71,16 +107,78 @@ async def search_web(
         return cached.model_copy(deep=True)
 
     async with _CONCURRENCY:
-        response = await _PROVIDER.search(
+        response = await _search_with_providers(
+            query,
+            count=count,
+            offset=offset,
+            market=market,
+            safe_search=safe_search,
+            ddg=_DDG,
+            bing=_BING,
+        )
+    if response.status == "ok":
+        _SEARCH_CACHE.set(key, response.model_copy(deep=True))
+    return response
+
+
+async def _search_with_providers(
+    query: str,
+    *,
+    count: int,
+    offset: int,
+    market: str,
+    safe_search: str,
+    ddg: SearchProvider,
+    bing: SearchProvider,
+) -> SearchResponse:
+    global _ddg_probe_ok
+    ddg_ok = await probe_duckduckgo()
+    ddg_response: SearchResponse | None = None
+    if ddg_ok:
+        ddg_response = _annotate(
+            await ddg.search(
+                query,
+                count=count,
+                offset=offset,
+                market=market,
+                safe_search=safe_search,
+            )
+        )
+        if _usable(ddg_response):
+            return ddg_response
+        if ddg_response.status in {"blocked", "error"}:
+            _ddg_probe_ok = False
+
+    bing_response = _annotate(
+        await bing.search(
             query,
             count=count,
             offset=offset,
             market=market,
             safe_search=safe_search,
         )
-    if response.status == "ok":
-        _SEARCH_CACHE.set(key, response.model_copy(deep=True))
-    return response
+    )
+    if ddg_response is None:
+        bing_response.warnings = [
+            "duckduckgo_unreachable: used Bing",
+            *bing_response.warnings,
+        ]
+        return bing_response
+
+    reason = ddg_response.error or ",".join(ddg_response.warnings) or ddg_response.quality_label
+    bing_response.warnings = [
+        f"fell_back_from_duckduckgo: {reason}",
+        *bing_response.warnings,
+    ]
+    if _usable(bing_response) or not _usable(ddg_response):
+        if ddg_response.quality_score > bing_response.quality_score and ddg_response.results:
+            ddg_response.warnings = [
+                *ddg_response.warnings,
+                "bing_fallback_was_worse; returning DuckDuckGo results",
+            ]
+            return ddg_response
+        return bing_response
+    return ddg_response
 
 
 async def open_web(url: str, *, max_chars: int = 24000) -> OpenResponse:

@@ -16,4 +16,5 @@ async def test_live_bing_search() -> None:
     response = await search_web("DeepSeek Harness GitHub", count=5, market="en-US")
     assert response.status == "ok", response.model_dump_json(indent=2)
     assert response.results, response.model_dump_json(indent=2)
+    assert response.provider in {"bing", "duckduckgo"}
     assert all(item.url.startswith(("http://", "https://")) for item in response.results)

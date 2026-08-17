@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 
 Status = Literal["ok", "blocked", "error"]
 SafeSearch = Literal["Strict", "Moderate", "Off"]
+Provider = Literal["bing", "duckduckgo"]
+QualityLabel = Literal["good", "weak", "poor"]
 
 
 class SearchResult(BaseModel):
@@ -19,7 +21,7 @@ class SearchResult(BaseModel):
 
 class SearchResponse(BaseModel):
     status: Status
-    provider: Literal["bing"] = "bing"
+    provider: Provider = "bing"
     query: str
     requested_count: int = 0
     returned_count: int = 0
@@ -27,6 +29,16 @@ class SearchResponse(BaseModel):
     market: str = "en-US"
     safe_search: SafeSearch = "Moderate"
     results: list[SearchResult] = Field(default_factory=list)
+    quality_score: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="0-1 overlap of the query with titles/snippets. Below 0.3 is not trustworthy.",
+    )
+    quality_label: QualityLabel = Field(
+        default="poor",
+        description="good / weak / poor. If poor, do not treat results as answers.",
+    )
     warnings: list[str] = Field(default_factory=list)
     elapsed_ms: int | None = None
     error: str | None = None
