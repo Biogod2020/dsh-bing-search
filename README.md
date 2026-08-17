@@ -228,6 +228,13 @@ This is an unofficial DuckDuckGo HTML + Bing HTML adapter. It does not use the r
 - Headless Bing on `www.bing.com` often returns structurally valid but unrelated cards. `cn.bing.com` helps some hot Chinese queries; long-tail names and titles can still collapse to the first token. That is what the quality mark is for.
 - `open` does not automatically retry slow target sites; increase the timeout environment variables if needed.
 
+## Notes from live DSH use
+
+- **The MCP process does not inherit your shell `HTTP_PROXY` / `10808`.** `curl_cffi` is started with `trust_env=False`. If DDG is blocked on the machine's direct egress, set `DSH_WEB_PROXY` on the plugin (for example `http://127.0.0.1:10808` in the cordis `env:` map). A `duckduckgo_unreachable` warning means the probe failed and Bing was used.
+- **`quality_label=weak` is not a hit on every query term.** A search for a person plus a disease can score `weak` because the disease papers matched while the name did not. Read `missing=` in `warnings` before treating a result as that person.
+- **`open` is not a weather widget.** Trafilatura often extracts nav chrome from tianqi.com / weather.com.cn. Prefer the search snippet, or open a simpler page.
+- After changing plugin code, restart DSH or the MCP child. stdio does not reload Python.
+
 ## Community
 
 DeepSeek Harness is currently in developer preview, so plugin interfaces may still evolve. For DSH-specific support and discovery:

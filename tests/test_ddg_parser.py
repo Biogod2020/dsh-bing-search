@@ -20,7 +20,18 @@ def test_parse_ddg_html() -> None:
     results = parse_ddg_results(html, count=8)
     assert [item.title for item in results] == ["Example A", "Example B"]
     assert results[0].url == "https://example.com/a"
+    assert results[0].display_url == "example.com"
     assert results[0].snippet == "Snippet A"
+
+
+def test_parse_ddg_drops_mobile_duplicate() -> None:
+    html = """
+    <a class="result__a" href="https://www.ebiotrade.com/newsf/2026-2/x">Desktop</a>
+    <a class="result__a" href="https://m.ebiotrade.com/newsf/2026-2/x">Mobile</a>
+    """
+    results = parse_ddg_results(html, count=8)
+    assert len(results) == 1
+    assert results[0].url.startswith("https://www.ebiotrade.com")
 
 
 def test_ddg_202_is_blocked() -> None:

@@ -19,6 +19,7 @@ class Quality:
     score: float
     label: QualityLabel
     reasons: tuple[str, ...]
+    missing: tuple[str, ...] = ()
 
 
 def query_tokens(query: str) -> list[str]:
@@ -77,6 +78,14 @@ def score_results(query: str, results: list[SearchResult]) -> Quality:
 
     hits = [token for token in tokens if token.lower() in blob]
     overlap = len(hits) / len(tokens)
+    significant = [
+        token
+        for token in tokens
+        if (_CJK_RE.search(token) and len(token) >= 2) or len(token) >= 4
+    ]
+    missing = [token for token in significant if token.lower() not in blob]
+    if missing:
+        reasons.append("missing_tokens")
 
     first = tokens[0]
     later = tokens[1:]
@@ -96,20 +105,25 @@ def score_results(query: str, results: list[SearchResult]) -> Quality:
     score = round(max(0.0, min(1.0, overlap)), 3)
     if not reasons and score < 0.3:
         reasons.append("low_overlap")
-    return Quality(score, _label(score), tuple(reasons))
+    return Quality(score, _label(score), tuple(dict.fromkeys(reasons)), tuple(missing))
 
 
 def apply_quality(query: str, results: list[SearchResult]) -> tuple[float, QualityLabel, list[str]]:
     quality = score_results(query, results)
     warnings: list[str] = []
+    missing_note = f" missing={','.join(quality.missing)}" if quality.missing else ""
     if quality.label == "poor":
         detail = ",".join(quality.reasons) or "unrelated"
         warnings.append(
-            f"quality_poor ({detail}): do not treat these titles as answers; retry a shorter query or another source."
+            f"quality_poor ({detail}): do not treat these titles as answers; retry a shorter query or another source.{missing_note}"
         )
     elif quality.label == "weak":
         detail = ",".join(quality.reasons) or "partial"
         warnings.append(
-            f"quality_weak ({detail}): only partial overlap with the query; verify before citing."
+            f"quality_weak ({detail}): only partial overlap with the query; verify before citing.{missing_note}"
+        )
+    elif quality.missing:
+        warnings.append(
+            f"quality_good but missing query terms: {', '.join(quality.missing)}. Do not assume those terms were found."
         )
     return quality.score, quality.label, warnings

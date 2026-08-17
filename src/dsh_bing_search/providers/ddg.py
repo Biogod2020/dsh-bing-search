@@ -1,11 +1,31 @@
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 from bs4 import BeautifulSoup, Tag
 
 from ..config import Settings, settings
 from ..http import CurlHttpClient, http_client
 from ..models import SearchResponse, SearchResult
 from ..url_utils import canonicalize_url, source_id_for, unwrap_ddg_url
+
+
+def _result_key(url: str) -> str:
+    parts = urlsplit(url)
+    host = (parts.hostname or "").lower()
+    for prefix in ("m.", "www.", "wap."):
+        if host.startswith(prefix):
+            host = host[len(prefix) :]
+            break
+    return f"{host}{parts.path.rstrip('/')}"
+
+
+def _display_url(url: str) -> str:
+    parts = urlsplit(url)
+    host = (parts.hostname or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    return host or url
 
 DDG_SEARCH_URL = "https://html.duckduckgo.com/html/"
 _DDG_BLOCK_MARKERS = (
@@ -30,7 +50,10 @@ def parse_ddg_results(html: str, *, count: int) -> list[SearchResult]:
         if not isinstance(href, str):
             continue
         url = canonicalize_url(unwrap_ddg_url(href))
-        if not url.startswith(("https://", "http://")) or url in seen:
+        if not url.startswith(("https://", "http://")):
+            continue
+        key = _result_key(url)
+        if key in seen:
             continue
         title = " ".join(anchor.get_text(" ", strip=True).split())
         if not title:
@@ -41,13 +64,14 @@ def parse_ddg_results(html: str, *, count: int) -> list[SearchResult]:
             snippet_node = parent.select_one(".result__snippet, .result-snippet")
             if snippet_node:
                 snippet = " ".join(snippet_node.get_text(" ", strip=True).split()) or None
-        seen.add(url)
+        seen.add(key)
         results.append(
             SearchResult(
                 source_id=source_id_for(url),
                 rank=len(results) + 1,
                 title=title,
                 url=url,
+                display_url=_display_url(url),
                 snippet=snippet,
             )
         )
