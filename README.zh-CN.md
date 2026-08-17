@@ -229,13 +229,6 @@ CI 覆盖 Python 3.10、3.12、3.13、3.14。
 - 无头访问下 Bing 国际站常返回结构完整但内容无关的结果；中国站能修好部分热门中文，长尾人名/标题仍可能首词坍缩。质量分就是为这种情况准备的。
 - `open` 默认不自动重试慢站点，需要时可调大 timeout 环境变量。
 
-## 实测里容易踩的点
-
-- **MCP 子进程不会继承你终端里的 `HTTP_PROXY` / `10808`。** 插件用 `trust_env=False` 起 `curl_cffi`。本机直连打不开 DDG 时，在 cordis 的 `env:` 里设 `DSH_WEB_PROXY: http://127.0.0.1:10808`。看到 `duckduckgo_unreachable` 就是探测失败、已经改走 Bing。
-- **`quality_label=weak` 不等于人名也搜到了。** 「魏子涵 + 颞叶癫痫」可能因论文主题对上而打 weak，warnings 里的 `missing=` 会列出没出现的词（如人名、学校）。先看这个再引用。
-- **`open` 不是天气组件。** tianqi.com / weather.com.cn 一类页面 trafilatura 经常只抽出导航。温度请看搜索 snippet，或换更干净的页面再 `open`。
-- 改完插件代码要重启 DSH 或 MCP 子进程，stdio 不会热加载 Python。
-
 ## 社区
 
 DeepSeek Harness 目前仍处于 developer preview，插件接口可能继续变化。DSH 官方目前建议通过 [`dsh-plugin`](https://github.com/topics/dsh-plugin) GitHub topic 发现第三方插件。

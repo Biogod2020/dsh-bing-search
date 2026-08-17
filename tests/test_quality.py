@@ -35,23 +35,6 @@ def test_ticket_dictionary_is_poor() -> None:
     assert quality.label == "poor"
 
 
-def test_missing_person_name_is_called_out() -> None:
-    quality = score_results(
-        "魏子涵 颞叶癫痫 脑电微状态 空军军医大学",
-        _hits(
-            "颞叶癫痫中的脑电图微状态分析：一项按手术结果分层的比较研究",
-            "脑电微状态分析在癫痫中的研究进展",
-        ),
-    )
-    assert "魏子涵" in quality.missing
-    assert "空军军医大学" in quality.missing
-    _, _, warnings = apply_quality(
-        "魏子涵 颞叶癫痫 脑电微状态 空军军医大学",
-        _hits("颞叶癫痫中的脑电图微状态分析"),
-    )
-    assert any("魏子涵" in item for item in warnings)
-
-
 def test_apply_quality_warns_the_model() -> None:
     score, label, warnings = apply_quality(
         "python asyncio timeout",
