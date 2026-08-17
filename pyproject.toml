@@ -8,7 +8,7 @@ license = { text = "MIT" }
 authors = [
   { name = "Biogod2020" },
 ]
-keywords = ["deepseek", "dsh", "mcp", "bing", "search", "curl-cffi"]
+keywords = ["deepseek", "deepseek-harness", "dsh", "dsh-plugin", "mcp", "bing", "search", "curl-cffi"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "License :: OSI Approved :: MIT License",
