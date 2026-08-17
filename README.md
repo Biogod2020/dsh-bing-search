@@ -27,6 +27,8 @@ cd dsh-bing-search
 uv sync --extra dev
 ```
 
+`uv.lock` 已提交，`uv sync` 按锁文件安装，保证依赖可复现。
+
 运行 MCP stdio server：
 
 ```bash
@@ -37,7 +39,41 @@ stdio server 正常启动后会等待 MCP host，不会输出普通日志到 std
 
 ## 接入 DSH
 
-先在仓库内运行一次 `uv sync`，然后把下面配置加入 DSH 的 `cordis.yml`：
+先在仓库内运行一次 `uv sync`。DSH profile 由根配置（`cordis.yml`，条目列表）和 patch 层
+（`cordis.patch.yml`，patch 操作列表）合成，两种写法不同，注意区分。
+
+### 方式一：patch 层（推荐，`cordis.patch.yml`）
+
+patch 层追加新插件条目必须用 `- insert:` 包裹：
+
+```yaml
+- insert:
+    - id: mcp-web
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: web
+        transport: stdio
+        command: /ABS/PATH/dsh-bing-search/.venv/bin/dsh-bing-search
+        args: []
+        toolCallTimeoutMs: 30000
+        failOnStartupError: true
+        reconnect:
+          enabled: true
+          initialDelayMs: 500
+          maxDelayMs: 30000
+          maxAttempts: 10
+```
+
+⚠️ 不要使用裸条目（不带 `- insert:` 的 `- id: ...`）：patch 层里裸条目只按 id 覆盖**已有**
+条目，id 不存在时会被**静默跳过**（只有 DSH 服务端日志里有一条 warning），插件不会加载，
+界面上看不到任何异常。
+
+修改后无需手动重启：格式正确时 DSH 的 profile watcher 会自动拉起 MCP 进程。若 20 秒内
+`pgrep -f dsh-bing-search` 仍没有新进程，请检查是否用了 `- insert:` 包裹，然后重启 DSH。
+
+### 方式二：profile 根配置（`cordis.yml`）
+
+如果直接编辑 profile 根文件（条目列表），使用裸条目形式即可：
 
 ```yaml
 - id: mcp-web
@@ -145,5 +181,12 @@ RUN_LIVE_BING=1 uv run pytest -m live -s
 这是 Bing HTML 的非官方适配层，不依赖已退役的 Bing Search API。Bing DOM 变化被隔离在
 `src/dsh_bing_search/providers/bing_parser.py`。如果 Bing 返回 CAPTCHA 或 challenge 页面，工具会返回
 `status="blocked"`，不会尝试绕过验证。
+
+已知限制：
+
+- **复杂查询相关性不稳定**：带多个关键词/年份的长查询偶尔会返回泛化结果（Bing HTML
+  对长查询的解析不如 API 稳定），建议拆短查询、多查询交叉验证。
+- **`open` 不做自动重试**：目标站点连接超时（默认 8s）或传输超时（默认 20s）会直接返回
+  `fetch_error`；对慢站点可调大 `DSH_WEB_TIMEOUT_SECONDS` / `DSH_WEB_CONNECT_TIMEOUT_SECONDS`。
 
 插件只负责获取、解析、清洗、缓存与来源追踪；搜索策略、查询改写、来源判断和最终综合由 DSH agent 完成。

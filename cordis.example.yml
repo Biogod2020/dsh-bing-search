@@ -1,15 +1,23 @@
-# Add this entry to the DSH cordis.yml after running `uv sync` in this repository.
-- id: mcp-web
-  name: '@deepseek-ai/dsh-mcp-client'
-  config:
-    serverName: web
-    transport: stdio
-    command: /ABS/PATH/dsh-bing-search/.venv/bin/dsh-bing-search
-    args: []
-    toolCallTimeoutMs: 30000
-    failOnStartupError: true
-    reconnect:
-      enabled: true
-      initialDelayMs: 500
-      maxDelayMs: 30000
-      maxAttempts: 10
+# dsh-bing-search × DSH 接入示例（patch 层写法）
+#
+# 把这段加入 DSH profile 的 patch 层（cordis.patch.yml）。patch 层追加新条目
+# 必须用 `- insert:` 包裹；裸条目只按 id 覆盖已有条目，id 不存在时会被静默跳过
+# （只有服务端日志一条 warning，界面无任何异常）。
+# 格式正确时 DSH 会自动拉起 MCP 进程，无需重启；若 20 秒内未生效请检查格式。
+#
+# 运行前先在本仓库执行 `uv sync`（uv.lock 已提交，可复现）。
+- insert:
+    - id: mcp-web
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: web
+        transport: stdio
+        command: /ABS/PATH/dsh-bing-search/.venv/bin/dsh-bing-search
+        args: []
+        toolCallTimeoutMs: 30000
+        failOnStartupError: true
+        reconnect:
+          enabled: true
+          initialDelayMs: 500
+          maxDelayMs: 30000
+          maxAttempts: 10

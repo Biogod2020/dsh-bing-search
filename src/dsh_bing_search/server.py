@@ -1,6 +1,18 @@
 from __future__ import annotations
 
+import warnings
 from typing import Literal
+
+# fastmcp's server model carries a `lifespan` field with an unresolved forward
+# reference; pydantic_settings warns about it on every startup
+# (IncompleteFieldDefinitionWarning) even though it resolves fine at runtime.
+# Silence it so the stdio server starts with a clean stderr — anything written
+# to stdout would corrupt the MCP stdio protocol.
+warnings.filterwarnings(
+    "ignore",
+    message=r"Field 'lifespan' has an incomplete definition",
+    category=UserWarning,
+)
 
 from mcp.server.fastmcp import FastMCP
 
