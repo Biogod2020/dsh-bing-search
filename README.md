@@ -2,6 +2,10 @@
 
 [简体中文](./README.zh-CN.md)
 
+<p align="center">
+  <img src="docs/social-preview.png" width="100%" alt="dsh-bing-search: DuckDuckGo first, Bing by language, quality scores" />
+</p>
+
 Web search for **DeepSeek Harness (DSH)**, implemented as a small MCP server and powered by [`curl_cffi`](https://github.com/lexiforest/curl_cffi).
 
 `search` order:

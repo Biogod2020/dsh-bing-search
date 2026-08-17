@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>dsh-bing-search social preview</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap");
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 1280px; height: 640px; overflow: hidden; background: #07090d; }
+    body {
+      font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+      color: #e8edf5;
+      background:
+        radial-gradient(900px 520px at 108% -10%, rgba(34, 211, 166, 0.22), transparent 55%),
+        radial-gradient(700px 480px at -8% 110%, rgba(251, 191, 36, 0.16), transparent 50%),
+        radial-gradient(600px 400px at 55% 120%, rgba(56, 189, 248, 0.10), transparent 45%),
+        linear-gradient(160deg, #0a0d12 0%, #10151d 55%, #0b1220 100%);
+    }
+    .grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(circle at 30% 40%, #000 20%, transparent 78%);
+    }
+    .wrap {
+      position: relative;
+      display: flex;
+      height: 640px;
+      padding: 52px 56px 48px;
+      gap: 40px;
+    }
+    .left { flex: 1.15; display: flex; flex-direction: column; justify-content: center; }
+    .kicker {
+      display: inline-flex; align-items: center; gap: 10px;
+      color: #7ee0c2; font-size: 18px; font-weight: 600; letter-spacing: 0.16em;
+      text-transform: uppercase; margin-bottom: 18px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #22d3a6; box-shadow: 0 0 16px #22d3a6; }
+    h1 {
+      font-size: 76px; line-height: 0.95; font-weight: 700; letter-spacing: -0.04em;
+      margin-bottom: 22px;
+    }
+    h1 span { color: #22d3a6; }
+    .lede {
+      font-size: 26px; line-height: 1.35; color: #b7c2d0; max-width: 620px; font-weight: 500;
+    }
+    .pills { display: flex; gap: 12px; margin-top: 28px; flex-wrap: wrap; }
+    .pill {
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 18px; font-weight: 600;
+      padding: 10px 16px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+    }
+    .pill.on { border-color: #22d3a6; color: #9ff3dc; background: rgba(34,211,166,0.12); }
+    .pill.dim { color: #9aa6b5; }
+    .right {
+      width: 460px; display: flex; flex-direction: column; justify-content: center; gap: 14px;
+    }
+    .card {
+      background: rgba(12, 16, 24, 0.82);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 16px 18px 14px;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+    }
+    .row { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+    .row + .row { border-top: 1px solid rgba(255,255,255,0.06); }
+    .idx {
+      width: 28px; height: 28px; border-radius: 8px;
+      display: grid; place-items: center;
+      font-family: "IBM Plex Mono", monospace; font-size: 14px; color: #8b97a8;
+      background: #161c27;
+    }
+    .title { font-size: 20px; font-weight: 600; }
+    .sub { font-size: 14px; color: #8b97a8; margin-top: 2px; font-family: "IBM Plex Mono", monospace; }
+    .badge {
+      margin-left: auto; font-size: 13px; font-weight: 700; letter-spacing: 0.06em;
+      padding: 5px 10px; border-radius: 999px; text-transform: uppercase;
+    }
+    .good { color: #052e22; background: #34d399; }
+    .weak { color: #422006; background: #fbbf24; }
+    .poor { color: #fff; background: #ef4444; }
+    .foot {
+      position: absolute; left: 56px; bottom: 28px; right: 56px;
+      display: flex; justify-content: space-between; align-items: center;
+      color: #7d8896; font-size: 16px; font-weight: 500;
+    }
+    .brand { font-family: "IBM Plex Mono", monospace; color: #9aa6b5; }
+  </style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="wrap">
+    <div class="left">
+      <div class="kicker"><span class="dot"></span> DSH plugin</div>
+      <h1>dsh-<span>bing</span>-search</h1>
+      <p class="lede">DuckDuckGo first. Bing by language. A quality score so the agent knows when results are junk.</p>
+      <div class="pills">
+        <div class="pill on">DDG · preferred</div>
+        <div class="pill dim">Bing · zh → cn / en → www</div>
+        <div class="pill dim">quality 0–1</div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="card">
+        <div class="row">
+          <div class="idx">1</div>
+          <div>
+            <div class="title">Visual Guide to DiffusionGemma</div>
+            <div class="sub">newsletter.maarten…</div>
+          </div>
+          <div class="badge good">good</div>
+        </div>
+        <div class="row">
+          <div class="idx">2</div>
+          <div>
+            <div class="title">上海今天天气 · 市气象局</div>
+            <div class="sub">cn.bing.com / ddg</div>
+          </div>
+          <div class="badge good">good</div>
+        </div>
+        <div class="row">
+          <div class="idx">3</div>
+          <div>
+            <div class="title">魏 （汉字）_百度百科</div>
+            <div class="sub">first-token collapse</div>
+          </div>
+          <div class="badge poor">poor</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot">
+    <span>mcp__web__search · open · find</span>
+    <span class="brand">github.com/Biogod2020</span>
+  </div>
+</body>
+</html>

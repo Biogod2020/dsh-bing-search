@@ -2,6 +2,10 @@
 
 [English](./README.md)
 
+<p align="center">
+  <img src="docs/social-preview.png" width="100%" alt="dsh-bing-search：优先 DuckDuckGo，按语言回退 Bing，带质量分" />
+</p>
+
 给 **DeepSeek Harness (DSH)** 使用的网页搜索插件。它以 MCP stdio server 的形式接入 DSH，所有网络请求明确使用 [`curl_cffi`](https://github.com/lexiforest/curl_cffi)。
 
 `search` 的顺序：
