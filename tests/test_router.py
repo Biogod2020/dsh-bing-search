@@ -16,8 +16,8 @@ class FakeProvider:
 
 def _ok(
     provider: str,
-    title: str = "A Visual Guide to DiffusionGemma - by Maarten Grootendorst",
-    query: str = "A Visual Guide to DiffusionGemma",
+    title: str = "DeepSeek Harness - GitHub",
+    query: str = "DeepSeek Harness GitHub",
 ) -> SearchResponse:
     return SearchResponse(
         status="ok",
@@ -30,13 +30,13 @@ def _ok(
                 source_id="src_1",
                 rank=1,
                 title=title,
-                url="https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-diffusiongemma",
+                url="https://github.com/deepseek-ai/deepseek-harness",
             )
         ],
     )
 
 
-def _junk(provider: str, query: str = "魏子涵 西京医院") -> SearchResponse:
+def _junk(provider: str, query: str = "高铁票怎么退") -> SearchResponse:
     return SearchResponse(
         status="ok",
         provider=provider,  # type: ignore[arg-type]
@@ -47,8 +47,8 @@ def _junk(provider: str, query: str = "魏子涵 西京医院") -> SearchRespons
             SearchResult(
                 source_id="src_j",
                 rank=1,
-                title="魏 （汉字）_百度百科",
-                url="https://baike.baidu.com/item/wei",
+                title="高 （汉字）_百度百科",
+                url="https://baike.baidu.com/item/gao",
             )
         ],
     )
@@ -62,7 +62,7 @@ async def test_prefers_reachable_ddg(monkeypatch) -> None:
     ddg = FakeProvider(_ok("duckduckgo"))
     bing = FakeProvider(_ok("bing", "Unrelated Bing Title"))
     response = await _search_with_providers(
-        "A Visual Guide to DiffusionGemma",
+        "DeepSeek Harness GitHub",
         count=3,
         offset=0,
         market="en-US",
@@ -84,7 +84,7 @@ async def test_falls_back_when_ddg_unreachable(monkeypatch) -> None:
     ddg = FakeProvider(_ok("duckduckgo"))
     bing = FakeProvider(_ok("bing"))
     response = await _search_with_providers(
-        "A Visual Guide to DiffusionGemma",
+        "DeepSeek Harness GitHub",
         count=3,
         offset=0,
         market="en-US",
@@ -104,10 +104,10 @@ async def test_falls_back_when_ddg_quality_is_poor(monkeypatch) -> None:
 
     monkeypatch.setattr("dsh_bing_search.service.probe_duckduckgo", _yes)
     ddg = FakeProvider(_junk("duckduckgo"))
-    bing = FakeProvider(_ok("bing", "A Visual Guide to DiffusionGemma", query="魏子涵 西京医院"))
-    # bing title won't match 魏 query — both poor; still records fallback
+    bing = FakeProvider(_ok("bing", "DeepSeek Harness - GitHub", query="高铁票怎么退"))
+    # bing title will not match the refund query — both poor; still records fallback
     response = await _search_with_providers(
-        "魏子涵 西京医院",
+        "高铁票怎么退",
         count=3,
         offset=0,
         market="zh-CN",

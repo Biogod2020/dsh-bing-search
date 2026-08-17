@@ -3,8 +3,8 @@ from dsh_bing_search.url_utils import unwrap_ddg_url
 
 
 def test_unwrap_ddg_redirect() -> None:
-    href = "//duckduckgo.com/l/?uddg=https%3A%2F%2Fnewsletter.maartengrootendorst.com%2Fp%2Fa-visual-guide-to-diffusiongemma"
-    assert unwrap_ddg_url(href) == "https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-diffusiongemma"
+    href = "//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Farticle"
+    assert unwrap_ddg_url(href) == "https://example.com/article"
 
 
 def test_parse_ddg_html() -> None:
