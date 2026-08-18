@@ -25,8 +25,11 @@ vision model exists the same call returns the pure-text ranking
    harness's own model catalog says so. No vision model → the tool returns
    `status: "unavailable"` and the caller falls back to pure-text scores.
 2. **One batch call** — all candidates (default up to 16, recommend 8) are
-   downloaded, persisted through the attachment service, and sent as
-   ImageBlocks in a **single** `ctx.llm.stream` request.
+   downloaded with browser-like headers (and Referer fallbacks on 403),
+   persisted through the attachment service, and sent as ImageBlocks in a
+   **single** `ctx.llm.stream` request, together with each image's title,
+   image URL, source page, and text score. The top 3 ranked images are
+   written to `tmp/image_audit/<query>/` in the session workspace.
 3. **Structured verdict** — the model returns a JSON array of
    `{index, accept, score, reasons}`; scores are merged with the text score
    (`final = textWeight*text + (1-textWeight)*vlm`), and a VLM score below
@@ -42,7 +45,9 @@ vision model exists the same call returns the pure-text ranking
 cp -R dsh-image-audit ~/.dsh/profiles/node_modules/
 
 # 2. add to ~/.dsh/profiles/web/cordis.patch.yml (see dsh-image-audit.cordis.yml)
-# 3. restart DSH (or rely on profile HMR) — the model then sees `audit_images`
+# 3. A new insert in cordis.patch.yml is picked up by profile HMR (next turn).
+#    Changing this package's JS after DSH has already imported it needs a DSH
+#    process restart — node_modules is not watched and ESM caches the module.
 ```
 
 ## Config
@@ -51,8 +56,8 @@ cp -R dsh-image-audit ~/.dsh/profiles/node_modules/
 |---|---|---|
 | `routes` | `[]` | optional explicit vision-route overrides `[{provider, model}]`, tried after the session route and DSH-declared vision models; usually empty — vision models are auto-detected from the DSH model configuration |
 | `maxImages` | `16` | max images per audit call (recommend 8) |
-| `maxOutputTokens` | `2000` | audit answer token cap |
-| `timeoutMs` | `45000` | end-to-end vision-call timeout |
+| `maxOutputTokens` | `32000` | audit answer token cap (free VLMs often burn thinking tokens before JSON) |
+| `timeoutMs` | `180000` | end-to-end vision-call timeout |
 | `vetoBelow` | `30` | VLM scores below this veto the candidate |
 | `textWeight` | `0.5` | weight of the pure-text score in the final blend |
 
@@ -71,5 +76,5 @@ with `input: [text, image]`):
 ## Test
 
 ```bash
-node --test dsh-image-audit/test/
+node --test "dsh-image-audit/test/*.test.js"
 ```

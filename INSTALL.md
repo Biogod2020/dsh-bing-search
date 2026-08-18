@@ -46,6 +46,7 @@ Install the `dsh-bing-search` executable, register it through DSH's official `@d
 
    ```text
    mcp__web__search
+   mcp__web__search_images
    mcp__web__open
    mcp__web__find
    ```

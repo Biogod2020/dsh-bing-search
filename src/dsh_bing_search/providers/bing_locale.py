@@ -7,6 +7,10 @@ _DEFAULT_HOSTS = {
     "https://www.bing.com/search",
     "https://cn.bing.com/search",
 }
+_DEFAULT_IMAGE_HOSTS = {
+    "https://www.bing.com/images/search",
+    "https://cn.bing.com/images/search",
+}
 
 
 def prefers_chinese(market: str, query: str) -> bool:
@@ -23,6 +27,15 @@ def bing_search_url(market: str, query: str, configured_url: str) -> str:
     if prefers_chinese(market, query):
         return "https://cn.bing.com/search"
     return "https://www.bing.com/search"
+
+
+def bing_images_url(market: str, query: str, configured_url: str) -> str:
+    """Pick cn.bing.com/images for Chinese, www.bing.com/images otherwise."""
+    if configured_url.rstrip("/") not in _DEFAULT_IMAGE_HOSTS:
+        return configured_url
+    if prefers_chinese(market, query):
+        return "https://cn.bing.com/images/search"
+    return "https://www.bing.com/images/search"
 
 
 def bing_setlang(market: str) -> str:

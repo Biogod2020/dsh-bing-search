@@ -247,13 +247,11 @@ async def _search_images_one(
                 candidates = await _COMMONS.search(query, count=count)
     except Exception as exc:
         status = "blocked" if str(exc).startswith("bing_challenge") else "error"
-        response = ImageSearchResponse(
+        return ImageSearchResponse(
             status=status, provider=provider, query=query,
             requested_count=count, market=market,
             error=f"provider_error: {type(exc).__name__}: {exc}",
         )
-        _IMAGE_CACHE.set(key, response.model_copy(deep=True))
-        return response
 
     elapsed_ms = round((time.perf_counter() - started) * 1000)
     results = rank_candidates(query, candidates)
@@ -285,7 +283,7 @@ async def _search_images_one(
 async def search_images_web(
     query: str,
     *,
-    count: int = 10,
+    count: int = 8,
     market: str = "en-US",
     provider: str = "auto",
 ) -> ImageSearchResponse:

@@ -9,7 +9,7 @@ explainable; no image bytes are inspected.
 | provider | source | notes |
 |---|---|---|
 | `auto` (default) | Bing Images first, Commons fallback | returns the Bing set when its top score is >= 40, else the better of the two (fallback is flagged in `warnings`) |
-| `bing_images` | `<a class="iusc" m="...">` metadata on `bing.com/images/search` | original URL (`murl`), thumbnail (`turl`), source page (`purl`), md5, text title; `cc` country code derived from the market (`en-US` -> `US`) |
+| `bing_images` | `<a class="iusc" m="...">` metadata | original URL (`murl`), thumbnail (`turl`), source page (`purl`), md5, text title; Chinese / `zh-*` markets use `cn.bing.com/images/search`, otherwise `www`; `cc` is derived from the market (`en-US` -> `US`) |
 | `commons` | Wikimedia Commons `action=query&generator=search` API | curated, licence-clear; returns width/height/mime |
 
 | env var | default | effect |
@@ -37,6 +37,11 @@ Every result carries `signals` (e.g. `query_tokens_matched: 二中,校服`,
 
 ## Guidance for the agent
 
+- Prefer compact concrete nouns plus the qualifier that uniquely identifies
+  the subject. "复旦光华楼" is better than "光华楼" — the extra place or
+  institution is necessary, not padding. Do not write whole sentences. If a
+  compact query is still ambiguous or hits the wrong entity, write more
+  (place, institution, year, type).
 - Prefer the highest `score`; treat scores below **40** as unverified
   (`top_score_low` warning is added in that case).
 - With the default `provider="auto"` a weak Bing result set automatically

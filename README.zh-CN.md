@@ -18,9 +18,10 @@
 每条搜索响应都带 `quality_score`（0–1）和 `quality_label`（`good` / `weak` / `poor`）。
 `poor` 表示标题和查询几乎对不上（词典页、只命中首词等），**不要当答案用**。
 
-三个浏览器式工具：
+四个浏览器式工具：
 
 - `mcp__web__search`：搜索公开网页，返回清洗后的自然搜索结果。
+- `mcp__web__search_images`：搜图并用可解释的纯文本分数排序（见 [docs/search_images.md](docs/search_images.md)）。
 - `mcp__web__open`：打开公开网页并提取可读正文。
 - `mcp__web__find`：在长网页中定位关键词并返回附近上下文。
 
@@ -48,7 +49,7 @@ https://github.com/Biogod2020/dsh-bing-search
 先阅读仓库 README 和 INSTALL.md。使用 uv 安装，自动识别我当前使用的 DSH profile，
 通过 cordis.patch.yml 的 `insert` 形式添加插件，不要覆盖任何无关配置；配置中使用
 已安装 dsh-bing-search 可执行文件的绝对路径。完成后确认 mcp__web__search、
-mcp__web__open、mcp__web__find 三个工具已经注册，最后执行一次真实网页搜索作为 smoke test，
+mcp__web__search_images、mcp__web__open、mcp__web__find 已经注册，最后执行一次真实网页搜索作为 smoke test，
 并告诉我改了哪些文件。
 ```
 
@@ -112,11 +113,12 @@ DSH 重新加载 profile 后，模型应该能看到：
 
 ```text
 mcp__web__search
+mcp__web__search_images
 mcp__web__open
 mcp__web__find
 ```
 
-随后让 Agent 搜索一个当前话题并打开其中一个结果。这个 round trip 同时验证搜索访问和 MCP 注册是否正常。改完插件代码后需要重启 DSH（或让 MCP 子进程重拉），stdio 进程不会热加载 Python。
+随后让 Agent 搜索一个当前话题并打开其中一个结果。这个 round trip 同时验证搜索访问和 MCP 注册是否正常。改完 Python 后回收 MCP 子进程即可；stdio 进程不会热加载。可选的原生 `dsh-image-audit`（`search_and_audit_images`）是另一次 Cordis insert，见该目录 README。
 
 ## 工具接口
 

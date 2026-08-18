@@ -8,6 +8,7 @@ from typing import Any
 from ..config import Settings, settings
 from ..http import CurlHttpClient, http_client
 from ..models import ImageCandidate
+from .bing_locale import bing_images_url
 from .bing_parser import detect_bing_block
 
 _M_BLOB_RE = re.compile(r'\bm="([^"]{40,})"')
@@ -59,7 +60,7 @@ class BingImagesProvider:
         params = build_params(query, market=market, cc_override=self.config.bing_images_cc)
         headers = build_headers(market)
         document = await self.client.fetch(
-            self.config.bing_images_url,
+            bing_images_url(market, query, self.config.bing_images_url),
             params=params,
             headers=headers,
             max_bytes=self.config.max_search_bytes,

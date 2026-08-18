@@ -17,9 +17,10 @@ Web search for **DeepSeek Harness (DSH)**, implemented as a small MCP server and
 
 Every search response includes `quality_score` (0–1) and `quality_label` (`good` / `weak` / `poor`). Treat `poor` as unusable (dictionary pages, first-token junk). Do not cite those titles.
 
-It gives a DSH agent three browser-style tools:
+It gives a DSH agent four browser-style tools:
 
 - `mcp__web__search` — search the public web and return normalized organic results.
+- `mcp__web__search_images` — search image indexes and rank results with explainable text scores (see [docs/search_images.md](docs/search_images.md)).
 - `mcp__web__open` — open a public web page and extract readable text.
 - `mcp__web__find` — find text inside a long page and return nearby context.
 
@@ -111,11 +112,12 @@ After DSH reloads the profile, the model should see:
 
 ```text
 mcp__web__search
+mcp__web__search_images
 mcp__web__open
 mcp__web__find
 ```
 
-Then ask the agent to search for something current and open one result. A successful round trip verifies both search access and MCP registration. Restart DSH (or the MCP child) after changing plugin code; the stdio process does not hot-reload Python.
+Then ask the agent to search for something current and open one result. A successful round trip verifies both search access and MCP registration. Recycle the MCP child after changing Python; the stdio process does not hot-reload. The optional native `dsh-image-audit` plugin (`search_and_audit_images`) is a separate Cordis insert — see `dsh-image-audit/README.md`.
 
 ## Tools
 

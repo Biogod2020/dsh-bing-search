@@ -47,7 +47,12 @@ async def search_tool(
     titles are unrelated or first-token junk — do not treat them as answers.
 
     Args:
-        query: Search query. Keep it short. For a person plus a paper, search the author name first.
+        query: Compact concrete nouns plus the qualifier that uniquely
+            identifies the subject. "复旦光华楼" is better than "光华楼" —
+            the extra place/institution is necessary, not padding. Do not
+            write whole sentences. If a compact query is still ambiguous or
+            hits the wrong entity, write more (place, institution, year,
+            type). For a person plus a paper, search the author name first.
         count: Number of organic results to return, from 1 to 20.
         offset: Result offset for pagination, from 0 to 100.
         market: Locale such as en-US or zh-CN. Chinese text should use zh-CN.
@@ -65,7 +70,7 @@ async def search_tool(
 @mcp.tool(name="search_images", title="Search Images", structured_output=True)
 async def search_images_tool(
     query: str,
-    count: int = 10,
+    count: int = 8,
     market: str = "en-US",
     provider: Literal["auto", "bing_images", "commons"] = "auto",
 ) -> ImageSearchResponse:
@@ -81,7 +86,11 @@ async def search_images_tool(
     page before downloading.
 
     Args:
-        query: What the image should depict. Keep it specific.
+        query: What the image should depict. Compact concrete nouns plus the
+            qualifier that uniquely identifies the subject (e.g. "复旦光华楼",
+            "台州城墙"). "复旦光华楼" is better than "光华楼". Do not write
+            whole sentences. If a compact query is still ambiguous or hits
+            the wrong entity, write more (place, institution, year, type).
         count: Number of ranked image results to return, from 1 to 20.
         market: Locale such as en-US or zh-CN (Bing Images; Commons is language-neutral).
         provider: auto (default), bing_images, or commons.
